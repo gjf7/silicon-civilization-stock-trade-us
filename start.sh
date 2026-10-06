@@ -1,48 +1,54 @@
 #!/usr/bin/env bash
-# Start pyserver (FastAPI on :8001) and web (Next.js on :3000) together.
-# If a port is already taken by our own process, reuse it; otherwise kill the
-# stale listener so the fresh server can bind.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PY_PORT="${PY_PORT:-8001}"
 WEB_PORT="${WEB_PORT:-3000}"
 
-free_port() {
-  local port="$1" label="$2"
-  local pid
-  pid="$(lsof -ti tcp:"$port" -sTCP:LISTEN || true)"
-  if [[ -z "$pid" ]]; then
-    return 0
+for port in "$PY_PORT" "$WEB_PORT"; do
+  if lsof -ti tcp:"$port" -sTCP:LISTEN >/dev/null; then
+    printf '[start] port %s is already in use; stop that service or choose another port.\n' "$port" >&2
+    exit 1
   fi
-  echo "[start] port $port ($label) busy (pid $pid) — killing"
-  kill "$pid" 2>/dev/null || true
-  for _ in 1 2 3 4 5; do
-    sleep 0.5
-    lsof -ti tcp:"$port" -sTCP:LISTEN >/dev/null || return 0
-  done
-  echo "[start] pid $pid did not exit, sending SIGKILL"
-  kill -9 "$pid" 2>/dev/null || true
-  sleep 0.5
-}
+done
 
-free_port "$PY_PORT" pyserver
-free_port "$WEB_PORT" web
+if [[ ! -x "$ROOT/pyserver/.venv/bin/python" || ! -f "$ROOT/web/node_modules/next/dist/bin/next" ]]; then
+  printf '[start] install dependencies first: (cd pyserver && uv sync --frozen) && (cd web && npm ci)\n' >&2
+  exit 1
+fi
 
 cleanup() {
-  echo "[start] shutting down"
-  [[ -n "${PY_PID:-}" ]] && kill "$PY_PID" 2>/dev/null || true
-  [[ -n "${WEB_PID:-}" ]] && kill "$WEB_PID" 2>/dev/null || true
+  trap - EXIT INT TERM
+  [[ -z "${PY_PID:-}" ]] || kill "$PY_PID" 2>/dev/null || true
+  [[ -z "${WEB_PID:-}" ]] || kill "$WEB_PID" 2>/dev/null || true
   wait 2>/dev/null || true
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
-echo "[start] launching pyserver on :$PY_PORT"
-( cd "$ROOT/pyserver" && uv run uvicorn main:app --port "$PY_PORT" ) &
+printf '[start] dashboard: http://127.0.0.1:%s\n' "$WEB_PORT"
+(
+  cd "$ROOT/pyserver"
+  exec .venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port "$PY_PORT"
+) &
 PY_PID=$!
 
-echo "[start] launching web on :$WEB_PORT"
-( cd "$ROOT/web" && npm run dev -- --port "$WEB_PORT" ) &
+(
+  cd "$ROOT/web"
+  exec node node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port "$WEB_PORT"
+) &
 WEB_PID=$!
 
-wait -n "$PY_PID" "$WEB_PID"
+# macOS ships Bash 3.2, which has no wait -n.
+while kill -0 "$PY_PID" 2>/dev/null && kill -0 "$WEB_PID" 2>/dev/null; do
+  sleep 1
+done
+
+status=0
+if ! kill -0 "$PY_PID" 2>/dev/null; then
+  wait "$PY_PID" || status=$?
+else
+  wait "$WEB_PID" || status=$?
+fi
+exit "$status"
