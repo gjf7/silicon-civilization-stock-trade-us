@@ -11,6 +11,8 @@ import {
   CartesianGrid,
 } from "recharts";
 import type { BacktestResult } from "@/lib/backtest";
+import { useT } from "../LocaleProvider";
+import type { MessageKey } from "@/lib/i18n";
 
 type Phase = "loading" | "signals" | "simulating";
 
@@ -20,10 +22,15 @@ interface Progress {
   total: number;
 }
 
-const PHASE_LABEL: Record<Phase, string> = {
-  loading: "Loading prices & fundamentals",
-  signals: "Generating DeepSeek signals",
-  simulating: "Simulating fills",
+const PHASE_LABEL: Record<Phase, MessageKey> = {
+  loading: "phaseLoading",
+  signals: "phaseSignals",
+  simulating: "phaseSimulating",
+};
+
+const SIDE_LABEL: Record<string, MessageKey> = {
+  buy: "actionBuy",
+  sell: "actionSell",
 };
 
 // Weights of each phase in the overall bar (must sum to 1).
@@ -35,6 +42,7 @@ const PHASE_WEIGHT: Record<Phase, number> = {
 const PHASE_ORDER: Phase[] = ["loading", "signals", "simulating"];
 
 export default function BacktestPage() {
+  const t = useT();
   const [startDate, setStartDate] = useState("2024-01-01");
   const [endDate, setEndDate] = useState(new Date().toISOString().slice(0, 10));
   const [rebalance, setRebalance] = useState(10);
@@ -118,36 +126,36 @@ export default function BacktestPage() {
 
   return (
     <div className="container">
-      <Link href="/" className="back-link">Back to watchlist</Link>
+      <Link href="/" className="back-link">{t("backToWatchlist")}</Link>
       <header className="page-header compact">
         <div>
-          <div className="eyebrow">Backtest</div>
-          <h1>Strategy Backtest</h1>
-          <p>Rolls DeepSeek signals forward and fills them on each rebalance period; prices and signals are cached.</p>
+          <div className="eyebrow">{t("backtestEyebrow")}</div>
+          <h1>{t("backtestTitle")}</h1>
+          <p>{t("backtestIntro")}</p>
         </div>
       </header>
 
       <div className="toolbar">
         <label className="field">
-          <span>Start</span>
+          <span>{t("fieldStart")}</span>
           <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
         </label>
         <label className="field">
-          <span>End</span>
+          <span>{t("fieldEnd")}</span>
           <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
         </label>
         <label className="field">
-          <span>Rebalance (days)</span>
+          <span>{t("fieldRebalance")}</span>
           <input type="number" min={1} max={60} value={rebalance}
             onChange={(e) => setRebalance(+e.target.value)} />
         </label>
         <label className="field">
-          <span>Max positions</span>
+          <span>{t("fieldMaxPositions")}</span>
           <input type="number" min={1} max={20} value={maxPositions}
             onChange={(e) => setMaxPositions(+e.target.value)} />
         </label>
         <button onClick={run} disabled={loading}>
-          {loading ? "Running…" : "Run backtest"}
+          {loading ? t("backtestRunning") : t("backtestRun")}
         </button>
       </div>
 
@@ -155,7 +163,7 @@ export default function BacktestPage() {
         <div className="card" style={{ marginTop: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
             <span>
-              {progress ? PHASE_LABEL[progress.phase] : "Preparing…"}
+              {progress ? t(PHASE_LABEL[progress.phase]) : t("backtestPreparing")}
               {progress && `  ${progress.done} / ${progress.total}`}
             </span>
             <span style={{ color: "var(--muted)" }}>{(pct * 100).toFixed(0)}%</span>
@@ -185,21 +193,21 @@ export default function BacktestPage() {
 
       {error && (
         <div className="card" style={{ marginTop: 16, borderColor: "var(--danger)" }}>
-          <strong>Failed:</strong> {error}
+          <strong>{t("backtestFailed")}</strong> {error}
         </div>
       )}
 
       {result && (
         <>
           <div className="row" style={{ marginTop: 16 }}>
-            <Kpi label="Total return" value={`${result.stats.totalReturnPct.toFixed(2)}%`} pos={result.stats.totalReturnPct >= 0} />
-            <Kpi label="CAGR" value={`${result.stats.cagrPct.toFixed(2)}%`} pos={result.stats.cagrPct >= 0} />
-            <Kpi label="Max drawdown" value={`${result.stats.maxDrawdownPct.toFixed(2)}%`} pos={false} />
-            <Kpi label="Sharpe" value={result.stats.sharpe.toFixed(2)} pos={result.stats.sharpe >= 0} />
-            <Kpi label="Trades" value={result.stats.trades.toString()} />
+            <Kpi label={t("kpiTotalReturn")} value={`${result.stats.totalReturnPct.toFixed(2)}%`} pos={result.stats.totalReturnPct >= 0} />
+            <Kpi label={t("kpiCagr")} value={`${result.stats.cagrPct.toFixed(2)}%`} pos={result.stats.cagrPct >= 0} />
+            <Kpi label={t("kpiMaxDrawdown")} value={`${result.stats.maxDrawdownPct.toFixed(2)}%`} pos={false} />
+            <Kpi label={t("kpiSharpe")} value={result.stats.sharpe.toFixed(2)} pos={result.stats.sharpe >= 0} />
+            <Kpi label={t("kpiTrades")} value={result.stats.trades.toString()} />
           </div>
 
-          <h2 className="subheading">Equity curve</h2>
+          <h2 className="subheading">{t("equityCurve")}</h2>
           <div className="card chart-card">
             <ResponsiveContainer>
               <LineChart data={result.equityCurve.map((b) => ({ date: b.date, equity: b.equity }))}>
@@ -215,21 +223,21 @@ export default function BacktestPage() {
             </ResponsiveContainer>
           </div>
 
-          <h2 className="subheading">Recent trades</h2>
+          <h2 className="subheading">{t("recentTrades")}</h2>
           <div className="theme-panel">
             <div className="table-wrap compact-table">
             <table>
               <thead>
-                <tr><th>Date</th><th>Ticker</th><th>Side</th><th>Shares</th><th>Price</th></tr>
+                <tr><th>{t("thDate")}</th><th>{t("thTicker")}</th><th>{t("thSide")}</th><th>{t("thShares")}</th><th>{t("thPrice")}</th></tr>
               </thead>
               <tbody>
-                {result.trades.slice(-30).reverse().map((t, i) => (
+                {result.trades.slice(-30).reverse().map((t2, i) => (
                   <tr key={i}>
-                    <td>{t.date}</td>
-                    <td>{t.symbol}</td>
-                    <td><span className={`badge ${t.side}`}>{t.side}</span></td>
-                    <td>{t.shares}</td>
-                    <td>{t.price.toFixed(2)}</td>
+                    <td>{t2.date}</td>
+                    <td>{t2.symbol}</td>
+                    <td><span className={`badge ${t2.side}`}>{t(SIDE_LABEL[t2.side] ?? "actionHold")}</span></td>
+                    <td>{t2.shares}</td>
+                    <td>{t2.price.toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>

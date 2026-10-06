@@ -1,11 +1,17 @@
 import Link from "next/link";
 import { readUniverse } from "@/lib/universe";
+import { getLocale } from "@/lib/locale";
+import { translate } from "@/lib/i18n";
 import RefreshUniverseButton from "./RefreshUniverseButton";
 import UniverseTable from "./UniverseTable";
 
 export const dynamic = "force-dynamic";
 
-export default function Home() {
+export default async function Home() {
+  const locale = await getLocale();
+  const t = (key: Parameters<typeof translate>[1], params?: Parameters<typeof translate>[2]) =>
+    translate(locale, key, params);
+
   const universe = readUniverse();
   const entries = universe.entries;
   const globalCount = entries.filter((e) => e.global_supply).length;
@@ -15,36 +21,34 @@ export default function Home() {
     <div className="container">
       <header className="page-header">
         <div>
-          <div className="eyebrow">DeepSeek · Yahoo Finance · US Equities</div>
-          <h1>Silicon Civilization Stocks</h1>
-          <p>
-            Tracking the supply side of AI: compute chips, optical/interconnect, AI servers, liquid cooling, power, data centers, memory, and semiconductor equipment & materials.
-          </p>
+          <div className="eyebrow">{t("homeEyebrow")}</div>
+          <h1>{t("homeTitle")}</h1>
+          <p>{t("homeIntro")}</p>
         </div>
         <div className="header-actions">
-          <Link href="/signals" className="button secondary">Live Signals</Link>
-          <Link href="/backtest" className="button secondary">Backtest</Link>
+          <Link href="/signals" className="button secondary">{t("navSignals")}</Link>
+          <Link href="/backtest" className="button secondary">{t("navBacktest")}</Link>
         </div>
       </header>
 
       <div className="summary-grid">
         <div className="metric">
-          <span className="label">Watchlist</span>
+          <span className="label">{t("metricWatchlist")}</span>
           <strong>{entries.length}</strong>
-          <span>US equities</span>
+          <span>{t("metricWatchlistSub")}</span>
         </div>
         <div className="metric">
-          <span className="label">Global supply chain</span>
+          <span className="label">{t("metricGlobal")}</span>
           <strong>{globalCount}</strong>
-          <span>{Math.round((globalCount / Math.max(entries.length, 1)) * 100)}% coverage</span>
+          <span>{t("metricGlobalSub", { pct: Math.round((globalCount / Math.max(entries.length, 1)) * 100) })}</span>
         </div>
         <div className="metric">
-          <span className="label">Sub-themes</span>
+          <span className="label">{t("metricThemes")}</span>
           <strong>{themeCount}</strong>
-          <span>grouped by supply-chain layer</span>
+          <span>{t("metricThemesSub")}</span>
         </div>
         <div className="metric">
-          <span className="label">Updated</span>
+          <span className="label">{t("metricUpdated")}</span>
           <strong>{universe.updated_at}</strong>
           <span>{universe.updated_by}</span>
         </div>
@@ -52,8 +56,8 @@ export default function Home() {
 
       <div className="section-heading">
         <div>
-          <h2>Watchlist</h2>
-          <p>Filter, and view ratings, price targets, and upside.</p>
+          <h2>{t("watchlistHeading")}</h2>
+          <p>{t("watchlistSubheading")}</p>
         </div>
         <RefreshUniverseButton />
       </div>

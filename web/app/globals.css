@@ -83,8 +83,14 @@ input, select { background: var(--field); color: var(--fg); border: 1px solid va
 .subheading { margin-top: 22px; margin-bottom: 10px; }
 .chart-card { height: 320px; }
 
+.lang-bar { display: flex; justify-content: flex-end; max-width: 1280px; margin: 0 auto; padding: 12px 24px 0; }
+.lang-toggle { display: inline-flex; gap: 4px; padding: 3px; background: var(--card); border: 1px solid var(--border); border-radius: 999px; }
+.lang-toggle button { min-height: 0; padding: 4px 12px; border-radius: 999px; background: transparent; color: var(--muted); font-size: 12px; font-weight: 600; }
+.lang-toggle button.active { background: var(--accent); color: #07170b; }
+
 @media (max-width: 860px) {
   .container { padding: 16px; }
+  .lang-bar { padding: 12px 16px 0; }
   .page-header, .section-heading { flex-direction: column; align-items: stretch; }
   .header-actions { justify-content: flex-start; }
   .summary-grid, .theme-grid { grid-template-columns: 1fr; }

@@ -1,6 +1,8 @@
 import { loadEntries } from "@/lib/universe";
 import { fetchKlines, fetchFundamental, fetchSpot } from "@/lib/pyserver";
 import { scoreSymbols, type SymbolSnapshot } from "@/lib/deepseek";
+import { getLocale } from "@/lib/locale";
+import { themeLabel, translate, type MessageKey } from "@/lib/i18n";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -58,7 +60,17 @@ async function loadSignals() {
   }));
 }
 
+const ACTION_KEY: Record<string, MessageKey> = {
+  buy: "actionBuy",
+  hold: "actionHold",
+  sell: "actionSell",
+};
+
 export default async function SignalsPage() {
+  const locale = await getLocale();
+  const t = (key: MessageKey, params?: Parameters<typeof translate>[2]) =>
+    translate(locale, key, params);
+
   let rows: Awaited<ReturnType<typeof loadSignals>> = [];
   let error: string | null = null;
   try {
@@ -69,44 +81,48 @@ export default async function SignalsPage() {
 
   return (
     <div className="container">
-      <Link href="/" className="back-link">Back to watchlist</Link>
+      <Link href="/" className="back-link">{t("backToWatchlist")}</Link>
       <header className="page-header compact">
         <div>
-          <div className="eyebrow">Live scoring</div>
-          <h1>Live Signals</h1>
-          <p>Weighted toward PEG and earnings growth / valuation fit, with short-term price signals down-weighted, producing 5-20 trading-day action calls.</p>
+          <div className="eyebrow">{t("signalsEyebrow")}</div>
+          <h1>{t("signalsTitle")}</h1>
+          <p>{t("signalsIntro")}</p>
         </div>
       </header>
       {error && (
         <div className="card" style={{ borderColor: "var(--danger)" }}>
-          <strong>Load failed:</strong> {error}
+          <strong>{t("loadFailed")}</strong> {error}
           <p style={{ color: "var(--muted)" }}>
-            Confirm pyserver is running at <code>{process.env.PYSERVER_URL ?? "http://localhost:8001"}</code>{" "}
-            and that <code>DEEPSEEK_API_KEY</code> is set.
+            {t("signalsHintPrefix")}
+            <code>{process.env.PYSERVER_URL ?? "http://localhost:8001"}</code>
+            {t("signalsHintSuffix")}
           </p>
         </div>
       )}
       {!error && (
         <div className="theme-panel">
           <div className="theme-title">
-            <strong>Signals</strong>
-            <span>{rows.filter((r) => r.signal?.action === "buy").length} buy · {rows.filter((r) => r.signal?.action === "sell").length} sell</span>
+            <strong>{t("signalsHeading")}</strong>
+            <span>{t("signalsCount", {
+              buy: rows.filter((r) => r.signal?.action === "buy").length,
+              sell: rows.filter((r) => r.signal?.action === "sell").length,
+            })}</span>
           </div>
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Ticker</th>
-                  <th>Name</th>
-                  <th>Theme</th>
-                  <th>Action</th>
-                  <th className="num">Price</th>
-                  <th className="num">Confidence</th>
-                  <th className="num">Size</th>
-                  <th className="num">PE(TTM)</th>
-                  <th className="num">Profit YoY</th>
-                  <th className="num">PEG</th>
-                  <th>Rationale</th>
+                  <th>{t("thTicker")}</th>
+                  <th>{t("thName")}</th>
+                  <th>{t("thTheme")}</th>
+                  <th>{t("thAction")}</th>
+                  <th className="num">{t("thPrice")}</th>
+                  <th className="num">{t("thConfidence")}</th>
+                  <th className="num">{t("thSize")}</th>
+                  <th className="num">{t("thPe")}</th>
+                  <th className="num">{t("thProfitYoy")}</th>
+                  <th className="num">{t("thPeg")}</th>
+                  <th>{t("thRationale")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -114,12 +130,12 @@ export default async function SignalsPage() {
                   <tr key={entry.symbol}>
                     <td className="mono">{entry.symbol}</td>
                     <td>{entry.name}</td>
-                    <td>{entry.theme}</td>
+                    <td>{themeLabel(entry.theme, locale)}</td>
                     <td>
                       {signal ? (
-                        <span className={`badge ${signal.action}`}>{signal.action}</span>
+                        <span className={`badge ${signal.action}`}>{t(ACTION_KEY[signal.action] ?? "actionHold")}</span>
                       ) : (
-                        <span className="badge">n/a</span>
+                        <span className="badge">{t("notAvailable")}</span>
                       )}
                     </td>
                     <td className="num">{snapshot?.spotPrice?.toFixed(2) ?? snapshot?.closes.at(-1)?.toFixed(2) ?? "—"}</td>

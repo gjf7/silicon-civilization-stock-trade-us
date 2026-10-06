@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useT } from "./LocaleProvider";
 
 interface RefreshResult {
   proposal: { rationale: string };
@@ -15,6 +16,7 @@ interface RefreshResult {
 
 export default function RefreshUniverseButton() {
   const router = useRouter();
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -62,7 +64,7 @@ export default function RefreshUniverseButton() {
   return (
     <div>
       <button onClick={run} disabled={busy}>
-        {busy ? "Refreshing…" : "✨ DeepSeek refresh watchlist"}
+        {busy ? t("refreshRunning") : t("refreshButton")}
       </button>
 
       {(busy || logs.length > 0 || result || error) && (
@@ -70,7 +72,7 @@ export default function RefreshUniverseButton() {
           {progress && progress.total > 0 && (
             <>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span>Validating new tickers {progress.done} / {progress.total}</span>
+                <span>{t("validatingTickers", { done: progress.done, total: progress.total })}</span>
                 <span style={{ color: "var(--muted)" }}>{(pct * 100).toFixed(0)}%</span>
               </div>
               <div style={{
@@ -90,9 +92,14 @@ export default function RefreshUniverseButton() {
           {error && <div style={{ color: "var(--danger)", marginTop: 8 }}>{error}</div>}
           {result && (
             <div style={{ marginTop: 10 }}>
-              <strong>Changes applied</strong> · {result.finalCount} names now
+              <strong>{t("changesApplied")}</strong> · {t("namesNow", { count: result.finalCount })}
               <div style={{ marginTop: 4 }}>
-                Added {result.applied.added.length} · Removed {result.applied.removed.length} · Reclassified {result.applied.reclassified.length} · Rejected {result.applied.rejected.length}
+                {t("changesSummary", {
+                  added: result.applied.added.length,
+                  removed: result.applied.removed.length,
+                  reclassified: result.applied.reclassified.length,
+                  rejected: result.applied.rejected.length,
+                })}
               </div>
               {result.applied.added.length > 0 && (
                 <div style={{ marginTop: 6, color: "var(--accent)" }}>

@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import type { UniverseEntry } from "@/lib/universe";
+import { themeLabel } from "@/lib/i18n";
+import { useLocale, useT } from "./LocaleProvider";
 
 interface Analyst {
   symbol: string;
@@ -120,6 +122,8 @@ export default function UniverseTable({
   const [onlyUpside, setOnlyUpside] = useState(false);
   const [query, setQuery] = useState("");
   const [theme, setTheme] = useState("all");
+  const locale = useLocale();
+  const t = useT();
   const [progress, setProgress] = useState(() => ({
     spotDone: initialSpots.length,
     analystDone: 0,
@@ -222,41 +226,47 @@ export default function UniverseTable({
     <>
       <div className="toolbar">
         <div className="field">
-          <span>Search</span>
+          <span>{t("search")}</span>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Ticker, name, theme"
+            placeholder={t("searchPlaceholder")}
           />
         </div>
         <div className="field">
-          <span>Theme</span>
+          <span>{t("themeLabel")}</span>
           <select value={theme} onChange={(e) => setTheme(e.target.value)}>
-            <option value="all">All themes</option>
-            {themes.map((t) => <option key={t} value={t}>{t}</option>)}
+            <option value="all">{t("allThemes")}</option>
+            {themes.map((th) => <option key={th} value={th}>{themeLabel(th, locale)}</option>)}
           </select>
         </div>
         <label className="check">
           <input type="checkbox" checked={onlyGlobal} onChange={(e) => setOnlyGlobal(e.target.checked)} />
-          <span>Global supply chain</span>
+          <span>{t("filterGlobal")}</span>
         </label>
         <label className="check">
           <input type="checkbox" checked={onlyUpside} onChange={(e) => setOnlyUpside(e.target.checked)} />
-          <span>Target above price</span>
+          <span>{t("filterUpside")}</span>
         </label>
         <div className="toolbar-status">
-          Showing {filtered.length}/{rows.length} · Price {priceCount}/{rows.length} · Rated {ratedCount} · Upside {upsideCount}
+          {t("statusShowing", {
+            shown: filtered.length,
+            total: rows.length,
+            price: priceCount,
+            rated: ratedCount,
+            upside: upsideCount,
+          })}
         </div>
-        <div className="fetch-progress" aria-label="pyserver data load progress">
+        <div className="fetch-progress" aria-label={t("progressAriaLabel")}>
           <div className="fetch-progress-meta">
-            <span>{isFetching ? "Fetching data from pyserver" : "pyserver data loaded"}</span>
+            <span>{isFetching ? t("fetchingData") : t("dataLoaded")}</span>
             <span>{progressPct}%</span>
           </div>
           <div className="fetch-progress-track">
             <div className="fetch-progress-bar" style={{ width: `${progressPct}%` }} />
           </div>
           <div className="fetch-progress-detail">
-            Price {progress.spotDone}/{progress.total} · Target/rating {progress.analystDone}/{progress.total}
+            {t("progressDetail", { price: progress.spotDone, analyst: progress.analystDone, total: progress.total })}
           </div>
         </div>
       </div>
@@ -265,20 +275,20 @@ export default function UniverseTable({
         {Object.entries(grouped).map(([theme, items]) => (
           <div key={theme} className="theme-panel">
             <div className="theme-title">
-              <strong>{theme}</strong>
+              <strong>{themeLabel(theme, locale)}</strong>
               <span>{items.length}</span>
             </div>
             <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Ticker</th>
-                    <th>Name</th>
-                    <th>Global</th>
-                    <th className="num">Price</th>
-                    <th className="num">Target</th>
-                    <th className="num">Upside</th>
-                    <th className="num">Buy rating</th>
+                    <th>{t("thTicker")}</th>
+                    <th>{t("thName")}</th>
+                    <th>{t("thGlobal")}</th>
+                    <th className="num">{t("thPrice")}</th>
+                    <th className="num">{t("thTarget")}</th>
+                    <th className="num">{t("thUpside")}</th>
+                    <th className="num">{t("thBuyRating")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -291,7 +301,7 @@ export default function UniverseTable({
                           <div className="stock-name">{r.name}</div>
                           {r.note && <div className="stock-note">{r.note}</div>}
                         </td>
-                        <td>{r.global_supply ? <span className="pill good">Yes</span> : <span className="pill">No</span>}</td>
+                        <td>{r.global_supply ? <span className="pill good">{t("yes")}</span> : <span className="pill">{t("no")}</span>}</td>
                         <td className="num">{r.analyst?.current_price?.toFixed(2) ?? (r.loading ? "…" : "—")}</td>
                         <td className="num">{r.analyst?.implied_target?.toFixed(2) ?? (r.loading ? "…" : "—")}</td>
                         <td className={`num ${u == null ? "muted" : u > 0 ? "pos" : "neg"}`}>
