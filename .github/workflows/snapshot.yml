@@ -1,0 +1,120 @@
+name: snapshot
+
+# Refresh the static GitHub Pages snapshot (docs/data/*.json) on a schedule.
+#
+# Why this exists: the Pages site is a frozen copy of the last snapshot. Without
+# this job it only updates when someone runs `web/scripts/snapshot.ts` by hand
+# and pushes the result.
+#
+# The job runs the real pyserver + snapshot script on the runner, so it needs
+# the DEEPSEEK_API_KEY repository secret. Nothing secret reaches the browser:
+# only the generated JSON is committed.
+on:
+  schedule:
+    # US market close is 16:00 ET. In UTC that is 20:00 during EDT and 21:00
+    # during EST, so 22:00 UTC lands after the close year round.
+    - cron: "0 22 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      run_backtest:
+        description: "Also refresh the 1-year backtest (many DeepSeek calls)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+# Never let two refreshes write to docs/ at the same time.
+concurrency:
+  group: snapshot
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require the DeepSeek API key secret
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          if [[ -z "$DEEPSEEK_API_KEY" ]]; then
+            echo "::error::Repository secret DEEPSEEK_API_KEY is not set. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - name: Decide snapshot scope
+        id: scope
+        # Signals are one batched DeepSeek call, so they run every time. The
+        # backtest makes one call per rebalance, so it stays opt-in.
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.run_backtest }}" == "true" ]]; then
+            echo "skip_backtest=0" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip_backtest=1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: pyserver/uv.lock
+
+      - name: Install web dependencies
+        working-directory: web
+        run: npm ci --no-audit --no-fund
+
+      - name: Sync pyserver dependencies
+        working-directory: pyserver
+        run: uv sync --frozen
+
+      - name: Install social-card renderer
+        # The snapshot script shells out to rsvg-convert for social-card.png and
+        # falls back to SVG-only when it is missing.
+        run: sudo apt-get update && sudo apt-get install -y librsvg2-bin
+
+      - name: Start pyserver
+        working-directory: pyserver
+        run: |
+          nohup uv run uvicorn main:app --host 127.0.0.1 --port 8001 > /tmp/pyserver.log 2>&1 &
+          for _ in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8001/health > /dev/null; then
+              echo "pyserver is up"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::pyserver did not become healthy"
+          cat /tmp/pyserver.log
+          exit 1
+
+      - name: Refresh snapshot
+        working-directory: web
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_BASE_URL: ${{ vars.DEEPSEEK_BASE_URL || 'https://api.deepseek.com' }}
+          DEEPSEEK_MODEL: ${{ vars.DEEPSEEK_MODEL || 'deepseek-v4-pro' }}
+          DEEPSEEK_MODEL_BACKTEST: ${{ vars.DEEPSEEK_MODEL_BACKTEST || 'deepseek-flash' }}
+          PYSERVER_URL: http://127.0.0.1:8001
+          SNAPSHOT_SKIP_BACKTEST: ${{ steps.scope.outputs.skip_backtest }}
+        run: ./node_modules/.bin/tsx scripts/snapshot.ts
+
+      - name: Commit refreshed snapshot
+        run: |
+          if git diff --quiet -- docs; then
+            echo "docs/ is unchanged; nothing to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs
+          git commit -m "Refresh dashboard snapshot ($(date -u +%F)) [skip ci]"
+          git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
