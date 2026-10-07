@@ -1,7 +1,7 @@
 {
   "$schema_note": "US silicon-civilization-consumption watchlist. Edit via UI or directly. Each entry: {symbol, name, theme, note?, global_supply?}.",
-  "updated_at": "2026-05-30",
-  "updated_by": "us-market-refactor",
+  "updated_at": "2026-10-07",
+  "updated_by": "deepseek-refresh",
   "entries": [
     {
       "symbol": "NVDA",
@@ -39,13 +39,6 @@
       "global_supply": true
     },
     {
-      "symbol": "QCOM",
-      "name": "Qualcomm",
-      "theme": "Compute / AI Chips",
-      "note": "Edge AI / inference",
-      "global_supply": true
-    },
-    {
       "symbol": "INTC",
       "name": "Intel",
       "theme": "Compute / AI Chips",
@@ -57,20 +50,6 @@
       "name": "Taiwan Semiconductor",
       "theme": "Foundry",
       "note": "Advanced-node foundry leader for AI chips",
-      "global_supply": true
-    },
-    {
-      "symbol": "GFS",
-      "name": "GlobalFoundries",
-      "theme": "Foundry",
-      "note": "Specialty foundry",
-      "global_supply": true
-    },
-    {
-      "symbol": "UMC",
-      "name": "United Microelectronics",
-      "theme": "Foundry",
-      "note": "Mature-node foundry",
       "global_supply": true
     },
     {
@@ -155,13 +134,6 @@
       "name": "Constellation Energy",
       "theme": "Power",
       "note": "Largest US nuclear fleet; data-center PPAs",
-      "global_supply": false
-    },
-    {
-      "symbol": "NRG",
-      "name": "NRG Energy",
-      "theme": "Power",
-      "note": "Power generation / retail",
       "global_supply": false
     },
     {
@@ -268,6 +240,90 @@
       "theme": "Cloud / AI Infra",
       "note": "Specialized GPU cloud for AI training",
       "global_supply": true
+    },
+    {
+      "symbol": "FN",
+      "name": "Fabrinet",
+      "theme": "Optical / Interconnect",
+      "note": "Key optical module manufacturer for NVDA and hyperscalers.",
+      "global_supply": true
+    },
+    {
+      "symbol": "CLS",
+      "name": "Celestica",
+      "theme": "AI Servers",
+      "note": "Builds AI servers and networking gear for hyperscalers.",
+      "global_supply": true
+    },
+    {
+      "symbol": "ETN",
+      "name": "Eaton",
+      "theme": "Thermal / Power Infra",
+      "note": "Power management and distribution for data centers.",
+      "global_supply": true
+    },
+    {
+      "symbol": "NVT",
+      "name": "nVent Electric",
+      "theme": "Thermal / Power Infra",
+      "note": "Liquid cooling and thermal management for AI data centers.",
+      "global_supply": true
+    },
+    {
+      "symbol": "RMBS",
+      "name": "Rambus",
+      "theme": "Memory / HBM",
+      "note": "Memory interface chips essential for HBM and AI memory.",
+      "global_supply": true
+    },
+    {
+      "symbol": "ONTO",
+      "name": "Onto Innovation",
+      "theme": "Semi Equipment",
+      "note": "Metrology and inspection for advanced packaging and HBM.",
+      "global_supply": true
+    },
+    {
+      "symbol": "APD",
+      "name": "Air Products",
+      "theme": "Semi Materials",
+      "note": "Critical gases for semiconductor manufacturing.",
+      "global_supply": true
+    },
+    {
+      "symbol": "MKSI",
+      "name": "MKS Instruments",
+      "theme": "Semi Materials",
+      "note": "Vacuum, photonics, and subsystems for semi equipment.",
+      "global_supply": true
+    },
+    {
+      "symbol": "META",
+      "name": "Meta Platforms",
+      "theme": "Cloud / AI Infra",
+      "note": "Major AI infrastructure buyer and developer.",
+      "global_supply": false
+    },
+    {
+      "symbol": "CSCO",
+      "name": "Cisco",
+      "theme": "Networking",
+      "note": "Networking equipment for AI data centers.",
+      "global_supply": true
+    },
+    {
+      "symbol": "IRM",
+      "name": "Iron Mountain",
+      "theme": "IDC / Data Center",
+      "note": "Data center REIT with growing AI colocation.",
+      "global_supply": false
+    },
+    {
+      "symbol": "NEE",
+      "name": "NextEra Energy",
+      "theme": "Power",
+      "note": "Leading renewable power provider for data centers.",
+      "global_supply": false
     }
   ]
 }
