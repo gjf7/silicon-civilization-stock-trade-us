@@ -58,8 +58,29 @@ PY_IMAGE="scs-pyserver:$SHA"
 
 # --- build -----------------------------------------------------------------
 log "building $WEB_IMAGE and $PY_IMAGE for $PLATFORM"
-docker buildx build --platform "$PLATFORM" --load -t "$WEB_IMAGE" web/
-docker buildx build --platform "$PLATFORM" --load -t "$PY_IMAGE" pyserver/
+build_image() {
+  local tag="$1" ctx="$2"
+  docker buildx build --platform "$PLATFORM" --load -t "$tag" "$ctx"
+}
+
+# Docker Hub is occasionally unreachable from the build machine. The web image
+# falls back to a cached base image (same Debian release) instead of failing.
+build_web_image() {
+  if build_image "$WEB_IMAGE" web/; then
+    return 0
+  fi
+  local cached="${WEB_BASE_IMAGE:-node:22-slim}"
+  if ! docker image inspect "$cached" >/dev/null 2>&1; then
+    log "no cached base image ($cached) to fall back to"
+    return 1
+  fi
+  log "registry build failed; retrying with cached base image $cached"
+  docker buildx build --platform "$PLATFORM" --load --pull=false \
+    --build-arg "NODE_IMAGE=$cached" -t "$WEB_IMAGE" web/
+}
+
+build_image "$PY_IMAGE" pyserver/
+build_web_image
 
 # --- ship ------------------------------------------------------------------
 log "copying images to $HOST"
