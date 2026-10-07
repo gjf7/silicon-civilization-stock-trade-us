@@ -1,0 +1,10 @@
+[Unit]
+Description=Pull the newest published images and restart the stock dashboard
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/scs-update.sh
+# A stuck pull must not hold the timer.
+TimeoutStartSec=900

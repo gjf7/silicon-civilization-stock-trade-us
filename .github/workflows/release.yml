@@ -1,0 +1,62 @@
+name: release
+
+# Build the deployable images in the cloud and publish them to GHCR, so the VPS
+# never compiles anything. The host has ~1 GB RAM and one CPU core, and an
+# unrelated proxy already uses most of the memory; a Next.js build there risks
+# the OOM killer taking that proxy down.
+#
+# The VPS polls for the newest commit and pulls the matching images. Tags are
+# the full commit SHA, so a host always runs exactly one reviewed commit.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "pyserver/**"
+      - "deploy/**"
+      - ".github/workflows/release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: web
+            context: web
+          - name: pyserver
+            context: pyserver
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.name }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          platforms: linux/amd64
+          push: true
+          # Lowercase is required by GHCR; the repository slug already is.
+          tags: |
+            ghcr.io/${{ github.repository }}-${{ matrix.name }}:${{ github.sha }}
+            ghcr.io/${{ github.repository }}-${{ matrix.name }}:latest
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
