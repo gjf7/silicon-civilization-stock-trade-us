@@ -1,0 +1,45 @@
+# Runs the full Next.js app plus the market-data sidecar on the VPS.
+# Both ports bind to loopback only: Tailscale Serve proxies to them, so nothing
+# is reachable from the public internet. This host also runs an unrelated proxy
+# and Nginx, which this file never touches.
+services:
+  web:
+    image: ${SCS_WEB_IMAGE:?SCS_WEB_IMAGE must point at the built web image}
+    restart: unless-stopped
+    env_file:
+      - ./web.env
+    environment:
+      PYSERVER_URL: http://pyserver:8001
+      NODE_ENV: production
+    volumes:
+      - web-data:/app/data
+      - web-cache:/app/.cache
+    ports:
+      - "127.0.0.1:${SCS_WEB_PORT:-3000}:3000"
+    # This host has ~1 GB RAM and runs an unrelated proxy, so cap both services.
+    mem_limit: 420m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    depends_on:
+      - pyserver
+
+  pyserver:
+    image: ${SCS_PYSERVER_IMAGE:?SCS_PYSERVER_IMAGE must point at the built sidecar image}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${SCS_PYSERVER_PORT:-8001}:8001"
+    mem_limit: 320m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=5).status==200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  web-data:
+  web-cache:
