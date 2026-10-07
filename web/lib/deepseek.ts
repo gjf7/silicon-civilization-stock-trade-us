@@ -29,6 +29,36 @@ export interface ChatOptions {
   bypassCache?: boolean;
 }
 
+/**
+ * Parse a DeepSeek SSE payload into assistant text.
+ *
+ * A chunk may split an event across reads, so callers pass their buffer in and
+ * carry the returned `rest` into the next read. Keep-alive comments and
+ * unparseable lines are skipped.
+ */
+export function parseSseChunk(buffer: string): { text: string; rest: string } {
+  let text = "";
+  let rest = buffer;
+  let nl: number;
+  while ((nl = rest.indexOf("\n")) >= 0) {
+    const line = rest.slice(0, nl).trim();
+    rest = rest.slice(nl + 1);
+    if (!line.startsWith("data:")) continue;
+    const payload = line.slice(5).trim();
+    if (payload === "" || payload === "[DONE]") continue;
+    try {
+      const parsed = JSON.parse(payload) as {
+        choices?: { delta?: { content?: string } }[];
+      };
+      const piece = parsed.choices?.[0]?.delta?.content;
+      if (piece) text += piece;
+    } catch {
+      // Ignore partial JSON and non-JSON keep-alives.
+    }
+  }
+  return { text, rest };
+}
+
 export async function chat(
   messages: ChatMessage[],
   opts: ChatOptions = {},
@@ -41,11 +71,16 @@ export async function chat(
 
   const cacheParts = { model, temperature, responseFormat, messages };
   const doFetch = async () => {
+    // Stream the response rather than waiting for one JSON body. A scoring
+    // request for the whole watchlist takes well over 30s to generate, and
+    // non-streaming sends no bytes during that time, so an idle timeout on the
+    // path resets the connection (surfaces as "terminated" / ECONNRESET).
+    // Streaming keeps bytes flowing and completes.
     const body: Record<string, unknown> = {
       model,
       messages,
       temperature,
-      stream: false,
+      stream: true,
     };
     if (responseFormat === "json_object") {
       body.response_format = { type: "json_object" };
@@ -61,10 +96,23 @@ export async function chat(
     if (!r.ok) {
       throw new Error(`deepseek ${r.status}: ${await r.text()}`);
     }
-    const j = (await r.json()) as {
-      choices: { message: { content: string } }[];
-    };
-    return j.choices[0]?.message?.content ?? "";
+    if (!r.body) throw new Error("deepseek: response had no body");
+
+    const reader = r.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let out = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const { text, rest } = parseSseChunk(buffer);
+      out += text;
+      buffer = rest;
+    }
+    buffer += decoder.decode();
+    out += parseSseChunk(buffer).text;
+    return out;
   };
 
   if (opts.bypassCache) return doFetch();
