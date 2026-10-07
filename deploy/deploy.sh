@@ -123,4 +123,15 @@ remote "curl -fsS -o /dev/null -w '%{http_code}' http://127.0.0.1:$WEB_PORT/sign
   | grep -q 200 || die "signals page failed; run: deploy/deploy.sh --rollback"
 
 log "deployed $SHA"
-remote "cd $REMOTE_DIR && docker compose ps"
+remote "cd $REMOTE_DIR && SCS_WEB_IMAGE=$WEB_IMAGE SCS_PYSERVER_IMAGE=$PY_IMAGE \
+  SCS_WEB_PORT=$WEB_PORT SCS_PYSERVER_PORT=$PYSERVER_PORT docker compose ps"
+
+cat <<DONE
+
+The app is running on the VPS at 127.0.0.1:$WEB_PORT, reachable only from the
+host. To expose it to your tailnet (private, not the public internet):
+
+  ssh $HOST 'tailscale serve --bg --https 443 http://127.0.0.1:$WEB_PORT'
+
+Then open: https://$(remote 'tailscale status --json' | python3 -c "import json,sys;print(json.load(sys.stdin)['Self']['DNSName'].rstrip('.'))")
+DONE
